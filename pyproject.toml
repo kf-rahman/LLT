@@ -1,0 +1,22 @@
+[project]
+name = "ingestor"
+version = "0.1.0"
+description = "An agentic ingestion engine: point it at a data source and keep a searchable corpus continuously and correctly in sync."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+ingestor = "ingestor.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["ingestor"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

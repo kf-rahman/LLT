@@ -12,9 +12,18 @@ cd "$(dirname "$0")/.."
 APP_ENV="${APP_ENV:-development}"
 target="${1:-}"
 
-lint()      { :; }   # TODO: e.g.  npm run lint
-typecheck() { :; }   # TODO: e.g.  npm run type-check   /   tsc --noEmit
-tests()     { :; }   # TODO: e.g.  npm test             /   pytest -q
+lint()      { :; }   # TODO: wire a linter (e.g. ruff) when we adopt one
+typecheck() { :; }   # TODO: wire mypy/pyright when we adopt one
+
+tests() {
+  command -v python3 >/dev/null 2>&1 || { echo "python3 not found; skipping tests"; return 0; }
+  # `|| code=$?` keeps `set -e` from aborting before we inspect the exit code.
+  local code=0
+  python3 -m pytest -q || code=$?
+  # exit 5 = "no tests collected yet" — not a failure during early scaffolding.
+  [ "$code" -eq 5 ] && return 0
+  return "$code"
+}
 
 run() { echo "▶ $1"; "$1"; }
 

@@ -13,6 +13,10 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+*.egg-info/
+
+# Ingestor runtime state (stores are generated, not source)
+.ingestor/
 
 # Env / secrets — never commit real values
 .env
