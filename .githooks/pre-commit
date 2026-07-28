@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# pre-commit — turn conventions into enforcement. Exit non-zero to block.
+# Activated by ./scripts/setup.sh  (git config core.hooksPath .githooks).
+set -euo pipefail
+
+fail=0
+red()    { printf '\033[31m%s\033[0m\n' "$*"; }
+yellow() { printf '\033[33m%s\033[0m\n' "$*"; }
+
+staged()      { git diff --cached --name-only --diff-filter=ACM; }
+staged_diff() { git diff --cached -U0 --diff-filter=ACM; }
+
+# 1. Never commit a real .env / secrets file (allow *.example templates).
+if staged | grep -E '(^|/)\.env($|\.)' | grep -qvE '\.example$'; then
+  red "BLOCKED: a .env file is staged. Remove it — commit an .env.example instead."
+  fail=1
+fi
+
+# 2. Catch hardcoded secrets / API keys in the added lines.
+if staged_diff | grep -E '^\+' | grep -Eq \
+  'sk-ant-[A-Za-z0-9_-]{20,}|sk-(proj-)?[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'; then
+  red "BLOCKED: a string matching an API key / secret pattern is in the diff."
+  red "Move it to a gitignored .env. If it's a false positive, review manually."
+  fail=1
+fi
+
+# 3. Project-specific anti-patterns. Add your own; here's one example, commented:
+# if staged_diff | grep -E '^\+' | grep -Eq '\b(price|amount|total|cost)\b\s*:\s*float'; then
+#   red "BLOCKED: money field typed as float — use integer cents or Decimal."
+#   fail=1
+# fi
+
+# 4. Tests must pass when code (not just docs) changes. No-op until you wire
+#    scripts/run-checks.sh to your stack, so it won't block a fresh repo.
+if staged | grep -qvE '^(sessions/|features/|LICENSE$|.*\.md$)'; then
+  if [ -x scripts/run-checks.sh ] && ! scripts/run-checks.sh test; then
+    red "BLOCKED: checks failed (scripts/run-checks.sh test)."
+    fail=1
+  fi
+fi
+
+# 5. Nudge (warn, don't block): work should ship with a session summary.
+if [ -n "$(staged)" ] && ! staged | grep -qE '^sessions/.*\.md$'; then
+  yellow "note: no session summary staged (sessions/*.md) — consider adding one."
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo
+  red "Pre-commit checks failed. Commit blocked."
+  exit 1
+fi
+exit 0

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# post-commit — stamp the real commit hash into the session file(s) that were
+# part of this commit, linking session logs to git history permanently.
+# Loop-guarded: it makes one tiny follow-up commit, then does nothing further.
+set -euo pipefail
+
+# Don't recurse on our own link commit.
+case "$(git log -1 --format='%s')" in
+  "chore(session): link commit"*) exit 0 ;;
+esac
+
+hash="$(git rev-parse --short HEAD)"
+changed="$(git diff-tree --no-commit-id --name-only -r HEAD -- sessions 2>/dev/null || true)"
+[ -n "$changed" ] || exit 0
+
+touched=""
+while IFS= read -r f; do
+  case "$f" in *.md) ;; *) continue ;; esac
+  case "$f" in sessions/_*) continue ;; esac   # skip the _template placeholder
+  [ -f "$f" ] || continue
+  grep -q '`_pending_`' "$f" || continue
+  tmp="$(mktemp)"
+  sed 's/`_pending_`/`'"$hash"'`/' "$f" > "$tmp" && mv "$tmp" "$f"
+  git add "$f"
+  touched="$touched $f"
+done <<< "$changed"
+
+[ -n "$touched" ] || exit 0
+git commit --no-verify -m "chore(session): link commit $hash" >/dev/null
+echo "post-commit: linked$touched → $hash"
