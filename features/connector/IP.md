@@ -42,3 +42,7 @@ N/A. Empty source → zero events.
 ## Changelog
 
 - **2026-07-28** — Created.
+- **2026-07-28** — Decision: we do **not** build our own cloud connectors. We
+  adopt Onyx's connector breadth and wrap them behind this `Connector` interface;
+  our differentiation is the agentic ingestion layer downstream of the event. The
+  local-FS connector here is a dev stand-in. (See PROJECT.md "positioning".)

@@ -17,6 +17,16 @@ and they *change over time*. The result is brittle: mixed content is mangled,
 re-syncs duplicate data, and when a chunk is wrong there is no way to find out
 why it was produced. Nobody can trust the corpus.
 
+## Where we sit vs. Onyx (positioning)
+
+We are **not** rebuilding source connectors. Onyx already has broad connector
+coverage (S3, Drive, Notion, Slack, DBs, …) plus continuous sync. We **adopt that
+breadth** and put our effort where Onyx is weak: the **ingestion layer**. So the
+plan is to wrap Onyx's connectors behind our `Connector` interface and replace
+its static ingestion with our cleaner **agentic ingestion** (classify → recipe →
+deterministic execute → memory + trace). The local-filesystem connector in v1 is
+a dev stand-in; production connectors come from Onyx, not from us.
+
 ## What makes this different: agentic ingestion
 
 Ingestion decisions are made **per data class by an agent, once**, captured as a
@@ -116,8 +126,10 @@ is deferred — see future notes.
 - **Retrieval/query API** beyond a minimal read of the corpus — the query side is
   a later feature.
 - **Rich eval**: drift detection, re-reasoning triggers, recipe regression/A-B.
-- **Cloud connectors** (S3, Drive, Notion) — v1 uses a local-filesystem connector;
-  the connector interface is designed so these slot in later.
+- **Building our own cloud connectors** — we adopt Onyx's connectors (see
+  positioning above); v1 ships only a local-filesystem connector for dev, behind
+  an interface Onyx's connectors wrap into. Connector breadth is explicitly *not*
+  our differentiator.
 - **Real OCR/embedding models** are behind tool interfaces and may be stubbed in
   v1; the contract is what matters first.
 - **Multi-tenant / permissions** — see the future note.
