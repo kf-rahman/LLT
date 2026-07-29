@@ -1,7 +1,7 @@
 # Session — 2026-07-28 — ingestion-foundation
 
 - **Feature:** `features/orchestrator/IP.md` (+ #1–#10 of FEATURES.md)
-- **Commit:** `_pending_`
+- **Commit:** `4ad6eab`
 - **Branch:** `feat/ingestion-foundation`
 
 ## What was done
