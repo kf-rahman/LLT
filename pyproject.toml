@@ -3,10 +3,19 @@ name = "ingestor"
 version = "0.1.0"
 description = "An agentic ingestion engine: point it at a data source and keep a searchable corpus continuously and correctly in sync."
 requires-python = ">=3.11"
+# Core stays light. Real processing lives behind optional extras so a minimal
+# install (hashing embedder, no OCR) works with zero third-party deps.
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+# Open-source processing defaults (real PDF text, OCR, embeddings).
+processing = [
+    "pypdf>=6",
+    "pytesseract>=0.3",      # requires the system `tesseract` binary
+    "sentence-transformers>=2",
+    "Pillow>=10",
+]
+dev = ["pytest>=8", "fpdf2>=2"]
 
 [project.scripts]
 ingestor = "ingestor.cli:main"
