@@ -72,11 +72,40 @@ Decisions: Onyx will **not** be forked (it's a 94MB app, not a library); we adop
 individual MIT connectors à la carte only when needed. Considering borrowing
 Onyx's chunker + typed Section model + contextual-retrieval summaries as ideas.
 
+## Update — real-corpus run + reference check (same session)
+
+Ran the loop over a real corpus: **50 clinical monograph PDFs** in
+`~/Desktop/general-magic/data/...`, and checked against the reference full RAG
+workflow in `general-magic/General-Magic-CaseStudy/` (its own ingestion + Chroma
+index + eval over the same PDFs). This surfaced two real bugs synthetic tests
+missed — both now fixed:
+
+- **All 50 PDFs failed on the first run.** Cause chain: `_looks_tabular` fired on
+  almost any PDF → everything misclassified `pdf__text+tables`; the `layout` tool
+  still decoded raw PDF bytes instead of pypdf; and that recipe gated on
+  `tables_extracted > 0`, so mostly-text docs hard-failed. Fixed: strict tabular
+  heuristic (>=4 consistent rows), real pypdf text in `layout`, and tables are a
+  bonus (gate = `chunks > 0` + `text_nonempty`). → **52/52 ingest, 0 failures.**
+- **Chunking was silently truncating.** vs the reference (~200-tok windows, hard
+  cap 256): our chunks averaged ~910 tokens (max ~8800), so 52 chunks lost most
+  content at embed time (MiniLM truncates at 256 tok). Fixed with bounded
+  sentence-aligned windowing (`CHUNK_MAX_CHARS`). → 1130 chunks, avg ~157 tok,
+  **0 over the cap** (reference: 718, also 0 over).
+
+**Reference comparison result:** coverage parity (we ingest all docs, real text +
+OCR + 384-dim embeddings), and chunking now in the same bounded regime. The
+reference additionally extracts structured facts (formulary/cross-refs/figures)
+tied to its clinical-QA use case — out of scope for our general ingestion layer.
+
+Takeaway captured: the real data confirmed we needed a bounded chunker (the
+question "do we need Onyx's chunker" → we needed the *size-bound idea*, not the
+whole thing). Also note our chunker doesn't yet do sentence-overlap between
+windows like the reference — a cheap future improvement.
+
 ## What's next
 
 - Merge `feat/ingestion-foundation` → `main` (or keep building on the branch).
-- Optionally borrow from Onyx (ideas, not the app): its `indexing/chunker.py`
-  strategy (min-content merge, mini-chunks), the `Section`/`TextSection`/
-  `ImageSection` typed model, and contextual-retrieval chunk summaries.
-- Feature #11 (retrieval/query API) — first consumer of the real embeddings.
+- Optional chunk quality: add 1-sentence overlap between windows (reference does).
+- Optionally borrow from Onyx (ideas, not the app): the typed `Section` model and
+  contextual-retrieval chunk summaries (needs the LLM wired first).
 - Later: wire a real LLM `RecipeAuthor` (Anthropic) behind the existing seam.
