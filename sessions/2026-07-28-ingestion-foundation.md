@@ -49,11 +49,34 @@ Turned the design discussion into a working v1 of the agentic ingestion engine.
 - First `run-checks.sh test` wiring aborted under `set -e` before the exit-5
   tolerance ran; fixed with `|| code=$?`.
 
+## Update — real providers (same session)
+
+Replaced the processing stubs with real, verified implementations, per user
+direction (open-source defaults, everything env-swappable, LLM recipe author
+stays hand-coded for now):
+
+- `providers.py` — env-configured providers with graceful fallback:
+  - **PDF text** via pypdf (`extract_pdf_text` → text + has_text_layer).
+  - **OCR** via tesseract (images *and* scanned-PDF page images); `none` option.
+  - **Embeddings** via sentence-transformers (default, 384-dim) with a zero-dep
+    hashing fallback; `openai`/`voyage` seams raise clearly until wired.
+- `tools.py` extract_text/ocr/embed and `classify.py` PDF probes now call the
+  real providers (text_layer/scanned are real pypdf; tables = text heuristic).
+- Deps as an optional `processing` extra; `.env.example` documents every knob.
+- Tests use the deterministic hashing embedder + real tesseract; 33 passing.
+- **Verified end-to-end with real defaults:** a text PDF, a scanned PDF, an
+  image, and a CSV all ingested — real extracted text, real OCR output, real
+  384-dim vectors in the corpus.
+
+Decisions: Onyx will **not** be forked (it's a 94MB app, not a library); we adopt
+individual MIT connectors à la carte only when needed. Considering borrowing
+Onyx's chunker + typed Section model + contextual-retrieval summaries as ideas.
+
 ## What's next
 
-- Merge `feat/ingestion-foundation` → `main` (or decide to keep building on the
-  branch).
-- Replace stubs with real tools (feature #14): pdfminer text-layer + camelot
-  table detection in `classify.py`; real OCR/embeddings in `tools.py`.
-- Wire a real LLM `RecipeAuthor` (Anthropic) behind the existing seam.
-- Then feature #11 (retrieval/query API) — first consumer of the corpus.
+- Merge `feat/ingestion-foundation` → `main` (or keep building on the branch).
+- Optionally borrow from Onyx (ideas, not the app): its `indexing/chunker.py`
+  strategy (min-content merge, mini-chunks), the `Section`/`TextSection`/
+  `ImageSection` typed model, and contextual-retrieval chunk summaries.
+- Feature #11 (retrieval/query API) — first consumer of the real embeddings.
+- Later: wire a real LLM `RecipeAuthor` (Anthropic) behind the existing seam.
