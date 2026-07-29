@@ -38,11 +38,22 @@ def test_linear_plan_runs_and_produces_chunks(event_factory):
     recipe = Recipe("text@1", "text", 1,
                     [{"tool": "chunk", "by": "section"}, {"tool": "embed"}, {"tool": "store"}],
                     ["chunks > 0"])
-    ev = event_factory("s://a.txt", b"para one\n\npara two")
+    ev = event_factory("s://a.txt", b"Para one. \n\nPara two.")
     result = execute(recipe, ev, build_default_registry())
     assert result.error is None
-    assert [c.content for c in result.chunks] == ["para one", "para two"]
+    joined = " ".join(c.content for c in result.chunks)
+    assert "Para one" in joined and "Para two" in joined  # nothing lost
     assert all(c.embedding is not None for c in result.chunks)  # embed ran
+
+
+def test_chunker_bounds_oversized_content(event_factory):
+    from ingestor.tools import CHUNK_MAX_CHARS
+
+    big = ("word " * 4000).encode()  # ~20k chars, no sentence breaks -> must be split
+    recipe = Recipe("text@1", "text", 1, [{"tool": "chunk"}], ["chunks > 0"])
+    result = execute(recipe, event_factory("s://big.txt", big), build_default_registry())
+    assert len(result.chunks) > 1
+    assert all(len(c.content) <= CHUNK_MAX_CHARS for c in result.chunks)  # no truncation risk
 
 
 def test_route_step_dispatches_by_region(event_factory):

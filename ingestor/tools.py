@@ -34,6 +34,48 @@ def _line_is_tabular(line: str) -> bool:
     return len([c for c in re.split(r"\t|\s{2,}", line.strip()) if c]) >= 3
 
 
+# Bounded chunking. Embedding models silently truncate past their context window,
+# so a chunk MUST never exceed the hard cap or its tail is lost from the index.
+# Chars are a cheap token proxy (~4 chars/token), matching the target window.
+CHUNK_TARGET_CHARS = 800   # ~200 tokens — the window we aim for
+CHUNK_MAX_CHARS = 1024     # ~256 tokens — the embedding model's hard context
+
+_SENTENCE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _sentences(text: str):
+    for para in re.split(r"\n\s*\n", text):
+        para = para.strip()
+        if not para:
+            continue
+        for sent in _SENTENCE.split(para):
+            sent = sent.strip()
+            if sent:
+                yield sent
+
+
+def _windows(text: str) -> list[str]:
+    """Greedy ~target-sized, sentence-aligned windows; hard-split any sentence
+    longer than the cap so no window ever exceeds CHUNK_MAX_CHARS."""
+    out: list[str] = []
+    cur = ""
+    for sent in _sentences(text):
+        while len(sent) > CHUNK_MAX_CHARS:
+            if cur:
+                out.append(cur)
+                cur = ""
+            out.append(sent[:CHUNK_MAX_CHARS])
+            sent = sent[CHUNK_MAX_CHARS:].strip()
+        if cur and len(cur) + 1 + len(sent) > CHUNK_TARGET_CHARS:
+            out.append(cur)
+            cur = sent
+        else:
+            cur = f"{cur} {sent}".strip() if cur else sent
+    if cur:
+        out.append(cur)
+    return out
+
+
 def extract_text(ctx: ExecutionContext) -> None:
     """Real text extraction: pypdf for PDFs, decode otherwise."""
     if _is_pdf(ctx.data):
@@ -78,14 +120,13 @@ def _active_content(ctx: ExecutionContext) -> str:
 
 
 def chunk(ctx: ExecutionContext, by: str = "section") -> None:
+    """Bounded, sentence-aligned chunking. `by` is accepted for recipe
+    compatibility; windowing supersedes naive page/section splitting so no chunk
+    can exceed the embedding model's context (no silent truncation)."""
     content = _active_content(ctx)
     region = ctx.active_region or "text"
-    sep = "\f" if by == "page" else "\n\n"
-    pieces = [p.strip() for p in content.split(sep) if p.strip()]
-    if not pieces and content.strip():
-        pieces = [content.strip()]
-    for piece in pieces:
-        ctx.new_chunk(region, piece)
+    for window in _windows(content):
+        ctx.new_chunk(region, window)
 
 
 def extract_table(ctx: ExecutionContext) -> None:

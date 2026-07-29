@@ -22,7 +22,9 @@ def test_new_file_completes_with_row_trace_and_chunks(deps, event_factory):
 
     row = deps.documents.get("src://n.txt")
     assert row.recipe_id == "text@1" and row.trace_id and row.status is Status.COMPLETE
-    assert len(deps.corpus.get_by_path("src://n.txt")) == 2
+    chunks = deps.corpus.get_by_path("src://n.txt")
+    joined = " ".join(c.content for c in chunks)
+    assert chunks and "para one" in joined and "para two" in joined  # content preserved
 
     traces = [t for t in deps.tracer.read_all() if t["path"] == "src://n.txt"]
     assert any(t.get("action") == "committed" for t in traces)
@@ -39,13 +41,14 @@ def test_rerun_unchanged_skips_without_reprocessing(deps, event_factory):
 
 
 def test_modified_replaces_old_chunks(deps, event_factory):
-    ingest_event(event_factory("src://n.txt", b"a\n\nb"), deps)  # 2 chunks
-    outcome = ingest_event(event_factory("src://n.txt", b"x\n\ny\n\nz"), deps)  # 3 chunks
+    ingest_event(event_factory("src://n.txt", b"Alpha one. Alpha two."), deps)
+    outcome = ingest_event(event_factory("src://n.txt", b"Xray. Yankee. Zulu."), deps)
 
     assert outcome.change is Change.MODIFIED and outcome.committed
-    remaining = deps.corpus.get_by_path("src://n.txt")
-    assert [c.content for c in remaining] == ["x", "y", "z"]  # only the new version
-    assert deps.corpus.count() == 3  # no leftover duplicates
+    joined = " ".join(c.content for c in deps.corpus.get_by_path("src://n.txt"))
+    assert "Xray" in joined and "Zulu" in joined  # new version present
+    assert "Alpha" not in joined                   # old version fully replaced
+    assert deps.corpus.count() == len(deps.corpus.get_by_path("src://n.txt"))  # no leftovers
 
 
 def test_failing_check_commits_nothing(deps, event_factory):
