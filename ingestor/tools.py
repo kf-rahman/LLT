@@ -11,6 +11,8 @@ orchestrator *after* the inline check passes.
 
 from __future__ import annotations
 
+import re
+
 from .executor import ExecutionContext, ToolRegistry
 from .providers import (
     extract_pdf_text,
@@ -20,15 +22,16 @@ from .providers import (
     vector_to_bytes,
 )
 
-_TABLE_MARKER = "TABLE:"
-
-
 def _decode(data: bytes) -> str:
     return data.decode("utf-8", errors="ignore")
 
 
 def _is_pdf(data: bytes) -> bool:
     return data[:5].startswith(b"%PDF")
+
+
+def _line_is_tabular(line: str) -> bool:
+    return len([c for c in re.split(r"\t|\s{2,}", line.strip()) if c]) >= 3
 
 
 def extract_text(ctx: ExecutionContext) -> None:
@@ -51,16 +54,19 @@ def ocr(ctx: ExecutionContext) -> None:
 
 
 def layout(ctx: ExecutionContext) -> None:
-    """Segment into regions. Stub: lines under a TABLE: marker are the table
-    region; everything else is text."""
-    if not ctx.text:
+    """Segment a document into regions. Real text first (pypdf for PDFs), then
+    split off table-looking lines as a bonus 'table' region. The full text is
+    always kept in the 'text' region so nothing is lost if the table heuristic
+    is wrong. (Real layout/table extraction — camelot/unstructured — slots in
+    here later without changing the recipe.)"""
+    if _is_pdf(ctx.data):
+        ctx.text, _ = extract_pdf_text(ctx.data)
+    elif not ctx.text:
         ctx.text = _decode(ctx.data)
-    table_lines, text_lines = [], []
-    for line in ctx.text.splitlines():
-        (table_lines if line.strip().startswith(_TABLE_MARKER) else text_lines).append(line)
-    ctx.regions = {"text": "\n".join(text_lines)}
-    if table_lines:
-        ctx.regions["table"] = "\n".join(l.split(_TABLE_MARKER, 1)[-1].strip() for l in table_lines)
+    ctx.regions = {"text": ctx.text}
+    table_lines = [ln for ln in ctx.text.splitlines() if _line_is_tabular(ln)]
+    if len(table_lines) >= 4:
+        ctx.regions["table"] = "\n".join(table_lines)
 
 
 def _active_content(ctx: ExecutionContext) -> str:

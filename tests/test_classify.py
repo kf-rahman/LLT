@@ -40,5 +40,9 @@ def test_class_key_is_deterministic_and_fs_safe(event_factory, make_text_pdf):
 
 
 def test_looks_tabular_heuristic():
-    assert _looks_tabular("Item   Qty   Price\nApple   3   1.50\nPear   5   0.75")
+    # Needs >=4 rows of a consistent 3-column shape (strict, to avoid false positives).
+    assert _looks_tabular(
+        "Item   Qty   Price\nApple   3   1.50\nPear   5   0.75\nPlum   2   0.90"
+    )
+    assert not _looks_tabular("Item   Qty   Price\nApple   3   1.50")  # too few rows
     assert not _looks_tabular("This is ordinary prose with no columns at all.")

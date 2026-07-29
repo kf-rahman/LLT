@@ -65,7 +65,9 @@ _DEFAULT_PLANS: dict[str, tuple[list[dict], list[str]]] = {
                 "text": [{"tool": "chunk", "by": "section"}, {"tool": "embed"}, {"tool": "store"}],
             }},
         ],
-        ["chunks > 0", "tables_extracted > 0"],
+        # Text is the completeness bar; tables are a bonus, not a gate (a
+        # mostly-text doc must not fail just because it has no real table).
+        ["chunks > 0", "text_nonempty"],
     ),
     "csv": (
         [{"tool": "parse_csv"}, {"tool": "store"}],

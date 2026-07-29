@@ -53,11 +53,17 @@ def test_route_step_dispatches_by_region(event_factory):
                          "text": [{"tool": "chunk", "by": "section"}],
                      }}],
                     ["chunks > 0"])
-    ev = event_factory("s://m.pdf", b"narrative para\n\nTABLE: r1c1 r1c2\nmore narrative")
-    result = execute(recipe, ev, build_default_registry())
+    # A real tabular block: >=4 rows with a consistent 3-column shape (2+ spaces).
+    data = (b"Intro narrative paragraph.\n\n"
+            b"Item      Qty      Price\n"
+            b"Apple     3        1.50\n"
+            b"Pear      5        0.75\n"
+            b"Plum      2        0.90\n\n"
+            b"Closing narrative paragraph.")
+    result = execute(recipe, event_factory("s://m.txt", data), build_default_registry())
     regions = {c.region for c in result.chunks}
     assert "table" in regions and "text" in regions
-    assert result.facts["tables_extracted"] >= 1
+    assert result.facts["tables_extracted"] >= 4
 
 
 def test_unknown_tool_is_reported_not_silent(event_factory):

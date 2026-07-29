@@ -38,13 +38,18 @@ def _kind(event: IngestEvent, head: bytes) -> str:
 # heuristic — good enough to route, and swappable for camelot/unstructured later.
 
 def _looks_tabular(text: str) -> bool:
-    """Heuristic: >=2 lines that split into >=3 columns on tabs / 2+ spaces."""
-    rows = 0
+    """Conservative heuristic: a real table has several rows with a *consistent*
+    column count. Require >=4 lines that split into the same number of columns
+    (>=3) on tabs / 2+ spaces. Kept strict so ordinary prose isn't misread as a
+    table (a false positive used to route docs down the table path)."""
+    from collections import Counter
+
+    counts: Counter[int] = Counter()
     for line in text.splitlines():
         cells = [c for c in re.split(r"\t|\s{2,}", line.strip()) if c]
         if len(cells) >= 3:
-            rows += 1
-    return rows >= 2
+            counts[len(cells)] += 1
+    return any(n >= 4 for n in counts.values())
 
 
 def detect_signature(event: IngestEvent) -> Signature:
