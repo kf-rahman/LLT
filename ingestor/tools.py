@@ -12,6 +12,13 @@ orchestrator *after* the inline check passes.
 from __future__ import annotations
 
 from .executor import ExecutionContext, ToolRegistry
+from .providers import (
+    extract_pdf_text,
+    get_embedder,
+    get_ocr,
+    ocr_pdf_images,
+    vector_to_bytes,
+)
 
 _TABLE_MARKER = "TABLE:"
 
@@ -20,14 +27,26 @@ def _decode(data: bytes) -> str:
     return data.decode("utf-8", errors="ignore")
 
 
+def _is_pdf(data: bytes) -> bool:
+    return data[:5].startswith(b"%PDF")
+
+
 def extract_text(ctx: ExecutionContext) -> None:
-    ctx.text = _decode(ctx.data)
+    """Real text extraction: pypdf for PDFs, decode otherwise."""
+    if _is_pdf(ctx.data):
+        ctx.text, _ = extract_pdf_text(ctx.data)
+    else:
+        ctx.text = _decode(ctx.data)
     ctx.facts["pages"] = max(1, ctx.text.count("\f") + 1)
 
 
 def ocr(ctx: ExecutionContext) -> None:
-    # Stub OCR: treat decodable bytes as the "recognized" text.
-    ctx.text = _decode(ctx.data)
+    """Real OCR: tesseract on image bytes, or on the embedded images of a scanned
+    PDF. Provider is env-selectable (INGESTOR_OCR_PROVIDER)."""
+    if _is_pdf(ctx.data):
+        ctx.text = ocr_pdf_images(ctx.data)
+    else:
+        ctx.text = get_ocr().ocr_image(ctx.data)
     ctx.facts["pages"] = max(1, ctx.text.count("\f") + 1)
 
 
@@ -79,10 +98,14 @@ def parse_csv(ctx: ExecutionContext) -> None:
 
 
 def embed(ctx: ExecutionContext) -> None:
-    # Stub embedding: a fixed placeholder vector so the shape exists.
-    for c in ctx.chunks:
-        if c.embedding is None:
-            c.embedding = b"\x00" * 8
+    """Real embeddings via the configured provider (sentence-transformers by
+    default; env-selectable). Stored as packed float32 bytes."""
+    pending = [c for c in ctx.chunks if c.embedding is None]
+    if not pending:
+        return
+    vectors = get_embedder().embed([c.content for c in pending])
+    for chunk_obj, vec in zip(pending, vectors):
+        chunk_obj.embedding = vector_to_bytes(vec)
 
 
 def store(ctx: ExecutionContext) -> None:

@@ -13,7 +13,10 @@ changing callers or class_key semantics.
 
 from __future__ import annotations
 
+import re
+
 from .models import IngestEvent, Signature
+from .providers import extract_pdf_text
 
 
 def _kind(event: IngestEvent, head: bytes) -> str:
@@ -30,21 +33,18 @@ def _kind(event: IngestEvent, head: bytes) -> str:
     return "unknown"
 
 
-# --- PDF structural probes (STUBS — replace with real detectors) ---------------
+# --- PDF structural probes -----------------------------------------------------
+# text_layer / scanned are REAL (pypdf). Table detection is a text-shape
+# heuristic — good enough to route, and swappable for camelot/unstructured later.
 
-def _pdf_has_text_layer(data: bytes) -> bool:
-    # Real impl: pdfminer extract_text and check it's non-trivial.
-    return b"/Font" in data
-
-
-def _pdf_has_tables(data: bytes) -> bool:
-    # Real impl: camelot/pdfplumber table detection over pages.
-    return b"/Table" in data
-
-
-def _pdf_is_scanned(data: bytes) -> bool:
-    # Real impl: pages are images with no/negligible extractable text.
-    return b"/Image" in data and not _pdf_has_text_layer(data)
+def _looks_tabular(text: str) -> bool:
+    """Heuristic: >=2 lines that split into >=3 columns on tabs / 2+ spaces."""
+    rows = 0
+    for line in text.splitlines():
+        cells = [c for c in re.split(r"\t|\s{2,}", line.strip()) if c]
+        if len(cells) >= 3:
+            rows += 1
+    return rows >= 2
 
 
 def detect_signature(event: IngestEvent) -> Signature:
@@ -52,10 +52,11 @@ def detect_signature(event: IngestEvent) -> Signature:
     kind = _kind(event, data[:5])
     facts: dict[str, object] = {}
     if kind == "pdf":
+        text, has_text = extract_pdf_text(data)
         facts = {
-            "text_layer": _pdf_has_text_layer(data),
-            "tables": _pdf_has_tables(data),
-            "scanned": _pdf_is_scanned(data),
+            "text_layer": has_text,                 # real: did pypdf extract text?
+            "tables": has_text and _looks_tabular(text),
+            "scanned": not has_text,                # no extractable text => image-only
         }
     return Signature(kind=kind, facts=facts)
 
