@@ -81,6 +81,11 @@ _DEFAULT_PLANS: dict[str, tuple[list[dict], list[str]]] = {
         [{"tool": "chunk", "by": "section"}, {"tool": "embed"}, {"tool": "store"}],
         ["chunks > 0", "text_nonempty"],
     ),
+    "html": (
+        [{"tool": "extract_html"}, {"tool": "chunk", "by": "section"},
+         {"tool": "embed"}, {"tool": "store"}],
+        ["chunks > 0", "text_nonempty"],
+    ),
 }
 
 # Fallback for any class we don't have a template for (also what a real LLM

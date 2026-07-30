@@ -28,6 +28,8 @@ def _kind(event: IngestEvent, head: bytes) -> str:
         return "csv"
     if mime.startswith("image/") or name.endswith((".png", ".jpg", ".jpeg", ".tiff", ".gif")):
         return "image"
+    if mime == "text/html" or name.endswith((".html", ".htm")):
+        return "html"
     if mime.startswith("text/") or name.endswith((".txt", ".md")):
         return "text"
     return "unknown"

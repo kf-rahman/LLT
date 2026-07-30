@@ -12,6 +12,7 @@ orchestrator *after* the inline check passes.
 from __future__ import annotations
 
 import re
+from html.parser import HTMLParser
 
 from .executor import ExecutionContext, ToolRegistry
 from .providers import (
@@ -83,6 +84,46 @@ def extract_text(ctx: ExecutionContext) -> None:
     else:
         ctx.text = _decode(ctx.data)
     ctx.facts["pages"] = max(1, ctx.text.count("\f") + 1)
+
+
+class _HTMLToText(HTMLParser):
+    """Strip tags to readable text; drop script/style; break on block elements."""
+
+    _DROP = {"script", "style", "noscript", "head"}
+    _BREAK = {"p", "br", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "section"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._parts: list[str] = []
+        self._skip = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self._DROP:
+            self._skip += 1
+        elif tag in self._BREAK:
+            self._parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in self._DROP and self._skip:
+            self._skip -= 1
+        elif tag in ("p", "div", "section", "li"):
+            self._parts.append("\n")
+
+    def handle_data(self, data):
+        if not self._skip and data.strip():
+            self._parts.append(data)
+
+    def text(self) -> str:
+        return re.sub(r"\n{3,}", "\n\n", "".join(self._parts)).strip()
+
+
+def extract_html(ctx: ExecutionContext) -> None:
+    """Real HTML → clean text (stdlib html.parser). Used for Readwise Reader
+    documents (html_content) and any text/html item."""
+    parser = _HTMLToText()
+    parser.feed(_decode(ctx.data))
+    ctx.text = parser.text()
+    ctx.facts["pages"] = 1
 
 
 def ocr(ctx: ExecutionContext) -> None:
@@ -164,6 +205,7 @@ def build_default_registry() -> ToolRegistry:
     reg = ToolRegistry()
     for name, fn in {
         "extract_text": extract_text,
+        "extract_html": extract_html,
         "ocr": ocr,
         "layout": layout,
         "chunk": chunk,
