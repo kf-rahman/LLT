@@ -26,6 +26,24 @@ def test_extract_html_cleans_tags_and_scripts(event_factory):
     assert "tracker()" not in joined  # script dropped
 
 
+def test_extract_html_drops_boilerplate(event_factory):
+    # A page with nav/header/footer chrome around a real article body.
+    page = (b"<html><body><nav>Skip to content</nav>"
+            b"<header>Using Gmail with screen readers - Upgrade for more</header>"
+            b"<article><h1>The RAISE Act</h1>"
+            b"<p>New York's RAISE Act proposes a framework for building public trust in "
+            b"artificial intelligence through transparency and accountability measures.</p>"
+            b"<p>Proponents argue it sets a national precedent for responsible AI oversight "
+            b"without stifling innovation across the technology sector.</p></article>"
+            b"<footer>Unsubscribe - Privacy Policy</footer></body></html>")
+    recipe = Recipe("html@1", "html", 1, [{"tool": "extract_html"}, {"tool": "chunk"}], ["chunks > 0"])
+    result = execute(recipe, event_factory("s://a.html", page, "text/html"), build_default_registry())
+    joined = " ".join(c.content for c in result.chunks)
+    assert "RAISE Act" in joined and "public trust" in joined   # main content kept
+    assert "Skip to content" not in joined                       # nav dropped
+    assert "Unsubscribe" not in joined                           # footer dropped
+
+
 def _fake_page(results, cursor=None):
     return {"results": results, "nextPageCursor": cursor}
 

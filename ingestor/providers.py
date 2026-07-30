@@ -25,6 +25,19 @@ from typing import Protocol
 # --- Text extraction ----------------------------------------------------------
 
 
+def extract_html_text(html: str) -> str:
+    """Main-content extraction (drops nav/menus/boilerplate) via trafilatura.
+    Returns "" if trafilatura is unavailable or finds nothing, so the caller can
+    fall back to a plain tag-stripper."""
+    try:
+        import trafilatura
+
+        out = trafilatura.extract(html, include_comments=False, include_tables=True)
+        return out.strip() if out and out.strip() else ""
+    except Exception:
+        return ""
+
+
 def extract_pdf_text(data: bytes) -> tuple[str, bool]:
     """Return (text, has_text_layer). Uses pypdf. has_text_layer is False when the
     PDF yields no extractable text (i.e. it's scanned/image-only → OCR path)."""

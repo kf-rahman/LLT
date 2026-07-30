@@ -16,6 +16,7 @@ from html.parser import HTMLParser
 
 from .executor import ExecutionContext, ToolRegistry
 from .providers import (
+    extract_html_text,
     extract_pdf_text,
     get_embedder,
     get_ocr,
@@ -118,11 +119,16 @@ class _HTMLToText(HTMLParser):
 
 
 def extract_html(ctx: ExecutionContext) -> None:
-    """Real HTML → clean text (stdlib html.parser). Used for Readwise Reader
+    """HTML → clean main-content text. Prefers trafilatura (drops nav/boilerplate);
+    falls back to a plain tag-stripper if unavailable. Used for Readwise Reader
     documents (html_content) and any text/html item."""
-    parser = _HTMLToText()
-    parser.feed(_decode(ctx.data))
-    ctx.text = parser.text()
+    html = _decode(ctx.data)
+    text = extract_html_text(html)  # main-content extraction
+    if not text:
+        parser = _HTMLToText()  # fallback: strip tags
+        parser.feed(html)
+        text = parser.text()
+    ctx.text = text
     ctx.facts["pages"] = 1
 
 

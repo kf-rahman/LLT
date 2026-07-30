@@ -14,6 +14,7 @@ processing = [
     "pytesseract>=0.3",      # requires the system `tesseract` binary
     "sentence-transformers>=2",
     "Pillow>=10",
+    "trafilatura>=1.6",      # HTML main-content extraction (drops boilerplate)
 ]
 dev = ["pytest>=8", "fpdf2>=2"]
 
