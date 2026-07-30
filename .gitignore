@@ -17,6 +17,7 @@ venv/
 
 # Ingestor runtime state (stores are generated, not source)
 .ingestor/
+.ingestor-*/
 
 # Env / secrets — never commit real values
 .env
