@@ -7,6 +7,7 @@ its trace id, and its status. `acl` is reserved for future permissions.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS documents (
     trace_id     TEXT,
     status       TEXT NOT NULL,
     acl          TEXT,
+    meta         TEXT,
     updated_at   TEXT NOT NULL
 );
 """
@@ -33,7 +35,15 @@ class DocumentStore:
         self._conn = sqlite3.connect(str(self._path))
         self._conn.row_factory = sqlite3.Row
         self._conn.execute(_SCHEMA)
+        self._migrate()
         self._conn.commit()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a DB was first created (SQLite has no
+        ADD COLUMN IF NOT EXISTS). Keeps existing state dirs working."""
+        cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(documents)")}
+        if "meta" not in cols:
+            self._conn.execute("ALTER TABLE documents ADD COLUMN meta TEXT")
 
     def get(self, path: str) -> Document | None:
         row = self._conn.execute(
@@ -45,8 +55,8 @@ class DocumentStore:
         self._conn.execute(
             """
             INSERT INTO documents
-                (path, content_hash, class_key, recipe_id, trace_id, status, acl, updated_at)
-            VALUES (:path, :content_hash, :class_key, :recipe_id, :trace_id, :status, :acl, :updated_at)
+                (path, content_hash, class_key, recipe_id, trace_id, status, acl, meta, updated_at)
+            VALUES (:path, :content_hash, :class_key, :recipe_id, :trace_id, :status, :acl, :meta, :updated_at)
             ON CONFLICT(path) DO UPDATE SET
                 content_hash = excluded.content_hash,
                 class_key    = excluded.class_key,
@@ -54,6 +64,7 @@ class DocumentStore:
                 trace_id     = excluded.trace_id,
                 status       = excluded.status,
                 acl          = excluded.acl,
+                meta         = excluded.meta,
                 updated_at   = excluded.updated_at
             """,
             {
@@ -64,6 +75,7 @@ class DocumentStore:
                 "trace_id": doc.trace_id,
                 "status": doc.status.value,
                 "acl": doc.acl,
+                "meta": json.dumps(doc.meta) if doc.meta else None,
                 "updated_at": doc.updated_at,
             },
         )
@@ -92,5 +104,6 @@ def _row_to_doc(row: sqlite3.Row) -> Document:
         trace_id=row["trace_id"],
         status=Status(row["status"]),
         acl=row["acl"],
+        meta=json.loads(row["meta"]) if row["meta"] else {},
         updated_at=row["updated_at"],
     )

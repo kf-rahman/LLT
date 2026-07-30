@@ -38,13 +38,15 @@ class Status(str, Enum):
 
 @dataclass
 class IngestEvent:
-    """One item surfaced by a connector. `read` yields the raw bytes lazily."""
+    """One item surfaced by a connector. `read` yields the raw bytes lazily.
+    `meta` carries source metadata (title, category, url, …) for provenance."""
 
     path: str
     content_hash: str
     mime: str
     size: int
     read: Callable[[], bytes]
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -83,6 +85,7 @@ class Document:
     trace_id: str | None = None
     status: Status = Status.PROCESSING
     acl: str | None = None
+    meta: dict[str, Any] = field(default_factory=dict)  # title/category/url/… for provenance
     updated_at: str = field(default_factory=utcnow_iso)
 
 

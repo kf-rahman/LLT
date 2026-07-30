@@ -28,6 +28,16 @@ def test_document_acl_defaults_null(tmp_path):
     assert store.get("s://a").acl is None
 
 
+def test_document_meta_roundtrip(tmp_path):
+    store = DocumentStore(tmp_path / "d.db")
+    meta = {"title": "The Future Worth Building", "category": "article", "url": "https://x/y"}
+    store.upsert(Document(path="s://a", content_hash="h", meta=meta))
+    assert store.get("s://a").meta == meta
+    # empty meta stays an empty dict, not None
+    store.upsert(Document(path="s://b", content_hash="h"))
+    assert store.get("s://b").meta == {}
+
+
 def test_recipe_roundtrip_and_miss(tmp_path):
     store = RecipeStore(tmp_path / "recipes")
     r = Recipe(recipe_id="text@1", class_key="text", version=1,

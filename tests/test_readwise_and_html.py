@@ -63,6 +63,20 @@ def test_readwise_connector_yields_events(monkeypatch):
     assert all(e.mime == "text/html" and e.content_hash for e in events)
 
 
+def test_readwise_carries_metadata_for_provenance(monkeypatch, deps):
+    conn = ReadwiseConnector(token="fake")
+    page = _fake_page([{"id": "d1", "html_content": "<p>Body text here.</p>",
+                        "title": "The Future Worth Building", "category": "article",
+                        "url": "https://example.com/a"}])
+    monkeypatch.setattr(conn, "_get", lambda cursor: page)
+
+    ev = next(iter(conn.list_events()))
+    assert ev.meta["title"] == "The Future Worth Building" and ev.meta["category"] == "article"
+    # and it lands on the document row (readable provenance)
+    ingest_event(ev, deps)
+    assert deps.documents.get("readwise://d1").meta["title"] == "The Future Worth Building"
+
+
 def test_readwise_requires_token(monkeypatch):
     monkeypatch.delenv("READWISE_TOKEN", raising=False)
     import pytest

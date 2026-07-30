@@ -83,6 +83,13 @@ class ReadwiseConnector:
                     mime="text/html",
                     size=len(data),
                     read=(lambda d=data: d),
+                    meta={
+                        "title": doc.get("title"),
+                        "category": doc.get("category"),
+                        "author": doc.get("author"),
+                        "url": doc.get("url"),
+                        "source_url": doc.get("source_url"),
+                    },
                 )
             cursor = page.get("nextPageCursor")
             if not cursor:

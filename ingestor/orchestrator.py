@@ -93,7 +93,7 @@ def ingest_event(event: IngestEvent, deps: Deps) -> IngestOutcome:
     deps.documents.upsert(Document(
         path=event.path, content_hash=event.content_hash, class_key=class_key,
         recipe_id=recipe.recipe_id, trace_id=tid, status=Status.PROCESSING,
-        acl=existing.acl if existing else None,
+        acl=existing.acl if existing else None, meta=event.meta,
     ))
 
     # Execute the plan (deterministic).
