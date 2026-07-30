@@ -7,10 +7,26 @@ the root (tests use a temp dir) — nothing hard-codes an absolute path.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_STATE_DIR = Path(".ingestor")
+
+
+def load_dotenv(path: Path | str = ".env") -> None:
+    """Minimal .env loader — populate os.environ from KEY=VALUE lines if a .env
+    exists. Existing env vars win (setdefault). Keeps secrets (e.g. READWISE_TOKEN)
+    in a gitignored file, never in code or the shell history."""
+    p = Path(path)
+    if not p.exists():
+        return
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
 
 @dataclass(frozen=True)
