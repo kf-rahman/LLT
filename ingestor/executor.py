@@ -43,6 +43,7 @@ class ExecutionContext:
     text: str = ""
     regions: dict[str, str] = field(default_factory=dict)
     active_region: str | None = None
+    extracted: bool = False  # True once an extraction tool has run (even if it found nothing)
     chunks: list[Chunk] = field(default_factory=list)
     facts: dict[str, Any] = field(default_factory=dict)
     _seq: int = 0

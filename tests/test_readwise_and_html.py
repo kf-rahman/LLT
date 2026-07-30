@@ -91,3 +91,15 @@ def test_readwise_event_ingests_through_pipeline(deps, event_factory):
     outcome = ingest_event(ev, deps)
     assert outcome.committed and outcome.class_key == "html"
     assert deps.corpus.get_by_path("readwise://42")
+
+
+def test_empty_extraction_is_rejected_not_raw_bytes(deps, event_factory):
+    # Regression: an HTML doc that extracts to nothing must FAIL the check — the
+    # chunker must NOT fall back to chunking raw markup into the corpus.
+    from ingestor.models import Status
+
+    ev = event_factory("readwise://empty", b"<html><body></body></html>", "text/html")
+    outcome = ingest_event(ev, deps)
+    assert not outcome.committed and outcome.doc_status is Status.FAILED
+    assert "chunks > 0" in outcome.checks_failed
+    assert deps.corpus.get_by_path("readwise://empty") == []

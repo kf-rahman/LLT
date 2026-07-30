@@ -84,6 +84,7 @@ def extract_text(ctx: ExecutionContext) -> None:
         ctx.text, _ = extract_pdf_text(ctx.data)
     else:
         ctx.text = _decode(ctx.data)
+    ctx.extracted = True
     ctx.facts["pages"] = max(1, ctx.text.count("\f") + 1)
 
 
@@ -129,6 +130,7 @@ def extract_html(ctx: ExecutionContext) -> None:
         parser.feed(html)
         text = parser.text()
     ctx.text = text
+    ctx.extracted = True
     ctx.facts["pages"] = 1
 
 
@@ -139,6 +141,7 @@ def ocr(ctx: ExecutionContext) -> None:
         ctx.text = ocr_pdf_images(ctx.data)
     else:
         ctx.text = get_ocr().ocr_image(ctx.data)
+    ctx.extracted = True
     ctx.facts["pages"] = max(1, ctx.text.count("\f") + 1)
 
 
@@ -152,6 +155,7 @@ def layout(ctx: ExecutionContext) -> None:
         ctx.text, _ = extract_pdf_text(ctx.data)
     elif not ctx.text:
         ctx.text = _decode(ctx.data)
+    ctx.extracted = True
     ctx.regions = {"text": ctx.text}
     table_lines = [ln for ln in ctx.text.splitlines() if _line_is_tabular(ln)]
     if len(table_lines) >= 4:
@@ -161,7 +165,10 @@ def layout(ctx: ExecutionContext) -> None:
 def _active_content(ctx: ExecutionContext) -> str:
     if ctx.active_region and ctx.active_region in ctx.regions:
         return ctx.regions[ctx.active_region]
-    if not ctx.text:
+    # Only decode raw bytes as text when NO extractor ran (e.g. plain .txt). If an
+    # extractor ran and legitimately produced empty text, keep it empty so the
+    # check gate rejects the doc — never chunk raw markup/bytes into the corpus.
+    if not ctx.text and not ctx.extracted:
         ctx.text = _decode(ctx.data)
     return ctx.text
 
