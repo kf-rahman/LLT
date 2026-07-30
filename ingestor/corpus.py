@@ -64,6 +64,14 @@ class CorpusStore:
             for r in rows
         ]
 
+    def all_chunks(self) -> list[Chunk]:
+        rows = self._conn.execute("SELECT * FROM chunks").fetchall()
+        return [
+            Chunk(chunk_id=r["chunk_id"], path=r["path"], region=r["region"],
+                  content=r["content"], embedding=r["embedding"], acl=r["acl"])
+            for r in rows
+        ]
+
     def count(self) -> int:
         return self._conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
 

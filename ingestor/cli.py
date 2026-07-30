@@ -49,6 +49,22 @@ def _cmd_ingest_readwise(args: argparse.Namespace) -> int:
     return _report(ingest_source(connector, deps), args.state)
 
 
+def _cmd_query(args: argparse.Namespace) -> int:
+    from .query import search
+
+    deps = Deps.build(root=args.state)
+    hits = search(deps, args.text, k=args.k)
+    if not hits:
+        print("no results (empty corpus?)")
+        return 0
+    print(f"query: {args.text!r}\n")
+    for h in hits:
+        print(f"  {h.score:.3f}  [{h.region}] {h.title}")
+        print(f"         {h.snippet[:130]!r}")
+        print(f"         ↳ {h.path}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()  # pick up READWISE_TOKEN etc. from a gitignored .env
 
@@ -68,6 +84,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="filter: new | later | shortlist | archive | feed")
     rw.add_argument("--state", default=".ingestor", help="state dir for the stores")
     rw.set_defaults(func=_cmd_ingest_readwise)
+
+    q = sub.add_parser("query", help="semantic search over the corpus (verify ingestion)")
+    q.add_argument("text", help="the query")
+    q.add_argument("-k", type=int, default=5, help="number of results")
+    q.add_argument("--state", default=".ingestor", help="state dir for the stores")
+    q.set_defaults(func=_cmd_query)
 
     args = parser.parse_args(argv)
     return args.func(args)
