@@ -112,6 +112,38 @@ inline check, corpus, tracing.
 - Recipe author is still hand-coded templates (the `html` recipe is a template),
   not an LLM — don't oversell "the agent reasons about Readwise data."
 
+## Issues found — real-data dry run (2026-07-30)
+
+Ran the full pipeline on the real Reader library (11 docs: 2 articles, 5 rss,
+2 tweets, 1 video, 1 FAQ). **Nothing crashed** — all 11 committed, re-run fully
+idempotent (0 re-committed), `--updated-after` future-date returned 0, chunks all
+within the cap, trace log healthy (11 committed + 10 recipe_hit + 11 skipped, the
+1 authoring decision has a `why`). Issues, by priority:
+
+1. **[HIGH] HTML extraction leaks boilerplate/nav.** The article "The Byte: …RAISE
+   Act" (saved from a Gmail view) extracted `"Skip to content / Using Gmail with
+   screen readers / Upgrade for…"` — page chrome, not the article. Our
+   `extract_html` strips tags but does no *main-content* extraction, so nav/menus
+   leak in. **Fix:** readability-style extraction (e.g. `trafilatura` or
+   `readability-lxml`) in `extract_html`, behind the same tool name. Matters for
+   the demo if we show extracted content or do retrieval.
+
+2. **[MED] Metadata is lost — provenance is opaque ids.** We store only
+   `readwise://<id>`; not the title/category/url. A demo that shows "this came
+   from *The Future Worth Building Is Human*" can't, today. **Fix:** carry
+   title/category/source_url from the connector onto the document row (and chunk
+   metadata). Fits the reserved-field pattern; small schema add.
+
+3. **[LOW] Corpus skew.** One 17.6k-word Readwise FAQ doc = 138 of 211 chunks
+   (65%). Not a bug; just note it when showing counts, or exclude it for a
+   cleaner demo corpus.
+
+Non-issues confirmed working: the video (wc=0) still yielded 29 transcript
+chunks; tweets correctly produce 1 short chunk each; the long real article
+("The Future Worth Building Is Human", 2101 words) → 19 clean bounded chunks.
+
 ## Status
-Planned. Corresponds to a future FEATURES.md row ("Readwise connector + HTML
-path"). Build on this `demo` branch; merge to `main`/`feat` when working.
+Connector + HTML path built and verified on real data (branch `demo`). Before a
+polished demo, address issue #1 (content quality) and ideally #2 (readable
+provenance). Corresponds to a future FEATURES.md row ("Readwise connector + HTML
+path"). Merge to `main`/`feat` when the demo is locked.
