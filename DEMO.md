@@ -142,8 +142,23 @@ Non-issues confirmed working: the video (wc=0) still yielded 29 transcript
 chunks; tweets correctly produce 1 short chunk each; the long real article
 ("The Future Worth Building Is Human", 2101 words) → 19 clean bounded chunks.
 
+## Fixes + verification (2026-07-30)
+
+- **#1 (boilerplate) — fixed for real articles.** `extract_html` now uses
+  trafilatura main-content extraction (falls back to a tag-stripper). Verified:
+  nav/footer dropped, article body kept. **Caveat:** one library item ("RAISE
+  Act") was saved from the **Gmail web UI**, so its `html_content` is the Gmail
+  app shell, not an article — no extractor can recover an article that isn't
+  there. Treat as bad source input: **re-save it via its real URL in Readwise, or
+  exclude it from the demo.** (Possible later guard: flag docs whose extracted
+  text looks like app chrome / is tiny vs word_count.)
+- **#2 (provenance) — fixed.** Source metadata (title/category/url) now rides
+  from the connector onto the `documents.meta` column. Queries show titles.
+- **Query harness added** (`ingestor query "..."`, cosine over embeddings) to
+  verify ingestion. Real results are on-target: "apartment tour…" → the video
+  transcript (0.59); "hedge fund" → the right tweet (0.54), each with its title.
+
 ## Status
-Connector + HTML path built and verified on real data (branch `demo`). Before a
-polished demo, address issue #1 (content quality) and ideally #2 (readable
-provenance). Corresponds to a future FEATURES.md row ("Readwise connector + HTML
-path"). Merge to `main`/`feat` when the demo is locked.
+Connector + HTML path + fixes built and **verified on real data** (branch
+`demo`, 44 tests green). Ready to merge to `main`/`feat`. Before recording:
+re-save the one Gmail-saved item (or drop it), then lock the demo script.
