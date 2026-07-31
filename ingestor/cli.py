@@ -49,6 +49,12 @@ def _cmd_ingest_readwise(args: argparse.Namespace) -> int:
     return _report(ingest_source(connector, deps), args.state)
 
 
+def _cmd_demo(args: argparse.Namespace) -> int:
+    from .demo import run
+
+    return run(fresh=not args.keep)
+
+
 def _cmd_query(args: argparse.Namespace) -> int:
     from .query import search
 
@@ -84,6 +90,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="filter: new | later | shortlist | archive | feed")
     rw.add_argument("--state", default=".ingestor", help="state dir for the stores")
     rw.set_defaults(func=_cmd_ingest_readwise)
+
+    dm = sub.add_parser("demo", help="interactive terminal demo (pick source, ingest, ask questions)")
+    dm.add_argument("--keep", action="store_true",
+                    help="keep the existing demo corpus (show idempotent re-sync) instead of starting fresh")
+    dm.set_defaults(func=_cmd_demo)
 
     q = sub.add_parser("query", help="semantic search over the corpus (verify ingestion)")
     q.add_argument("text", help="the query")
