@@ -1,0 +1,33 @@
+The last few weeks I had an amazing opportunity to talk to companies and individuals that are working on some very meaningful and innovative GEN AI solutions.
+This project/exploration came about when I noticed something very commong accross all the conversations.
+
+A typical RAG workflow has the following elements:
+1. Source of data
+2. Injestion of data
+3. Chunking
+4. Retrieval
+5. Eval/Tracing
+
+Plenty of libraries( Langchian, some other names to name a few) take this entire process and abstract it away to a few lines. Yet in all my conversations, engineers were still very deeply involved in building these steps and most often had their own custom solutions
+to one or multiple of the steps. If I were to draw an analogy from ML, when we train a model it is generally same regardless of the data or the model. We are looking to lower the error rate. So there is a very standarized way of constructing a train function. So I 
+started thinking why did this not exist for RAG systems. The steps are very clearly understood and the end products are also very well defined.
+
+
+Turns out there is. Onyx. Onyx is an open source one stop shop for all things RAG. Regardless of where your data lives, you can clone your repo and have a very good first version of RAG implemented on your data in minuites. So what am I doing? 
+In this blog post, I breakdown LLT. Since I was already down the rabbit hole of trying to standardise RAG solutions, I was looking for what the gaps were in Onnyx( not in a bad way) and trying to pull insights from my converstaions. The thesis 
+behind LLT is that the key parts where RAG fails and teams spend most time in is getting retrieval to be amazing. This can be broken down a few ways.
+
+Instead of approaching it backwards and trying to give tools to developers to make sure there is retrieval is as good as they want it to be, I decided to attack the problem from the source. If your data isnt injested properly, what are you even going to retrieve?
+
+So I decided to build an agentic injestion system. Below you can find a technical breakdown. As always I am always open to feedback and my goal with these projects is to not only improve as an engineer but also hopefully initiate insightful conversations.
+
+Technical Breakdown
+- high level break down
+- design diagram
+- future
+- how would we scale this to enterprise
+
+Every feature/product should have an outcome. Outside of my goal to learn, what was the value proposition for something like this?
+Break down the problem in a more PM type of way
+Demo of readr, a real use case
+
